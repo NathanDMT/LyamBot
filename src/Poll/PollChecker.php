@@ -50,7 +50,7 @@ class PollChecker
                         $noVotes = max(0, ($noReaction->count ?? 1) - 1);
 
                         $embed = new Embed($this->discord);
-                        $embed->setTitle("Résultat du sondage :")
+                        $embed->setTitle("📊 Résultat du sondage :")
                             ->setDescription("{$poll['question']}")
                             ->addFieldValues("✅", "{$yesVotes} vote(s)", true)
                             ->addFieldValues("❌", "{$noVotes} vote(s)", true)
