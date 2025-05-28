@@ -15,20 +15,20 @@ class BanCommand
     {
         $command = CommandBuilder::new()
             ->setName('ban')
-            ->setDescription('Bannir un membre du serveur');
+            ->setDescription('Bannir un utilisateur même s’il n’est pas dans le serveur');
 
         $userOption = new Option($discord);
         $userOption
-            ->setName('utilisateur')
-            ->setDescription('Utilisateur à bannir')
-            ->setType(6) // USER
+            ->setName('user_id')
+            ->setDescription('ID de l’utilisateur à bannir')
+            ->setType(3) // STRING
             ->setRequired(true);
 
         $reasonOption = new Option($discord);
         $reasonOption
             ->setName('raison')
             ->setDescription('Raison du bannissement')
-            ->setType(3) // STRING
+            ->setType(3)
             ->setRequired(false);
 
         return $command->addOption($userOption)->addOption($reasonOption);
@@ -40,7 +40,7 @@ class BanCommand
         $reason = 'Aucune raison spécifiée';
 
         foreach ($interaction->data->options as $option) {
-            if ($option->name === 'utilisateur') {
+            if ($option->name === 'user_id') {
                 $userId = $option->value;
             }
             if ($option->name === 'raison') {
@@ -51,9 +51,8 @@ class BanCommand
         if (!$userId) {
             $embed = new Embed($discord);
             $embed->setTitle("Erreur ❌");
-            $embed->setDescription("Utilisateur non spécifié.");
+            $embed->setDescription("ID utilisateur non fourni.");
             $embed->setColor(0xFF0000);
-
             $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
@@ -61,58 +60,49 @@ class BanCommand
         $member = $interaction->member;
         if (!$member->getPermissions()->ban_members) {
             $embed = new Embed($discord);
-            $embed->setTitle("Permission refusée 🔒");
+            $embed->setTitle("Accès refusé 🔒");
             $embed->setDescription("Tu n’as pas la permission de bannir des membres.");
             $embed->setColor(0xFF8800);
-
             $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
 
         $guild = $interaction->guild;
 
-        $guild->members->fetch($discord->id)->then(
-            function ($botMember) use ($guild, $userId, $interaction, $discord, $reason) {
-                if (!$botMember->getPermissions()->ban_members) {
-                    $embed = new Embed($discord);
-                    $embed->setTitle("Permission manquante pour le bot ⚠️");
-                    $embed->setDescription("Le bot n’a pas la permission de bannir.");
-                    $embed->setColor(0xFFA500);
-
-                    $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
-                    return;
+        $discord->getHttpClient()->put("guilds/{$guild->id}/bans/{$userId}", [
+            'delete_message_days' => 0,
+            'reason' => $reason,
+        ])->then(
+            function () use ($interaction, $discord, $userId, $reason, $guild) {
+                // ➕ Enregistrement dans la base de données
+                try {
+                    $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
+                    $stmt = $pdo->prepare("INSERT INTO sanctions (user_id, type, reason, date, moderator_id, server_id) VALUES (?, 'ban', ?, NOW(), ?, ?)");
+                    $stmt->execute([
+                        $userId,
+                        $reason,
+                        $interaction->user->id,
+                        $guild->id
+                    ]);
+                } catch (\PDOException $e) {
+                    echo "Erreur BDD : " . $e->getMessage() . "\n";
                 }
 
-                $guild->members->fetch($userId)->then(
-                    function ($member) use ($interaction, $discord, $reason) {
-                        $member->ban(0)->then(
-                            function () use ($interaction, $discord, $member, $reason) {
-                                $embed = new Embed($discord);
-                                $embed->setTitle("✅ Utilisateur banni");
-                                $embed->setDescription("**{$member->user->username}** a été banni.\n✏️ Raison : `$reason`");
-                                $embed->setColor(0x00AAFF);
+                // ✅ Réponse utilisateur
+                $embed = new Embed($discord);
+                $embed->setTitle("✅ Utilisateur banni");
+                $embed->setDescription("L'utilisateur avec l'ID `<@$userId>` a été banni.\n✏️ Raison : `$reason`");
+                $embed->setColor(0x00AAFF);
 
-                                $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed));
-                            },
-                            function () use ($interaction, $discord) {
-                                $embed = new Embed($discord);
-                                $embed->setTitle("Erreur ❌");
-                                $embed->setDescription("Impossible de bannir l'utilisateur.");
-                                $embed->setColor(0xFF0000);
+                $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed));
+            },
+            function ($e) use ($interaction, $discord, $userId) {
+                $embed = new Embed($discord);
+                $embed->setTitle("Erreur ❌");
+                $embed->setDescription("Impossible de bannir `$userId`. Raison : " . $e->getMessage());
+                $embed->setColor(0xFF0000);
 
-                                $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
-                            }
-                        );
-                    },
-                    function () use ($interaction, $discord) {
-                        $embed = new Embed($discord);
-                        $embed->setTitle("Erreur ❌");
-                        $embed->setDescription("Utilisateur introuvable.");
-                        $embed->setColor(0xFF0000);
-
-                        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
-                    }
-                );
+                $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             }
         );
     }

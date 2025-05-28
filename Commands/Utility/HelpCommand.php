@@ -1,10 +1,9 @@
 <?php
 
-namespace Commands\Moderation;
+namespace Commands\Utility;
 
-use Discord\Discord;
 use Discord\Builders\CommandBuilder;
-use Discord\Builders\MessageBuilder;
+use Discord\Discord;
 use Discord\Parts\Interactions\Interaction;
 
 class HelpCommand

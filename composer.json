@@ -6,9 +6,10 @@
     },
     "autoload": {
         "psr-4": {
-            "Commands\\": "commands/",
+            "Commands\\": "Commands/",
             "XP\\": "src/XP/",
-            "Poll\\": "src/Poll/"
+            "Poll\\": "src/Poll/",
+            "Helpers\\": "src/Helpers/"
         }
     }
 }

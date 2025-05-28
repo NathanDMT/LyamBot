@@ -9,50 +9,38 @@ use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
 
-class KickCommand
+class UnbanCommand
 {
     public static function register(Discord $discord): CommandBuilder
     {
         $command = CommandBuilder::new()
-            ->setName('kick')
-            ->setDescription('Expulse un membre du serveur');
+            ->setName('unban')
+            ->setDescription('Débannir un utilisateur via son ID');
 
         $userOption = new Option($discord);
         $userOption
-            ->setName('user_id')
-            ->setDescription('ID de l’utilisateur à expulser')
+            ->setName('userid')
+            ->setDescription('ID de l’utilisateur à débannir')
             ->setType(3) // STRING
             ->setRequired(true);
 
-        $reasonOption = new Option($discord);
-        $reasonOption
-            ->setName('reason')
-            ->setDescription('Raison du kick')
-            ->setType(3)
-            ->setRequired(false);
-
-        return $command->addOption($userOption)->addOption($reasonOption);
+        return $command->addOption($userOption);
     }
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
         $userId = null;
-        $reason = 'Aucune raison spécifiée';
 
         foreach ($interaction->data->options as $option) {
-            if ($option->name === 'user_id') {
+            if ($option->name === 'userid') {
                 $userId = $option->value;
-            }
-            if ($option->name === 'reason') {
-                $reason = $option->value;
             }
         }
 
-        $member = $interaction->member;
-        if (!$member->getPermissions()->kick_members) {
+        if (!$userId) {
             $embed = new Embed($discord);
-            $embed->setTitle("Accès refusé ❌");
-            $embed->setDescription("Tu n’as pas la permission d’expulser des membres.");
+            $embed->setTitle("Erreur ❌");
+            $embed->setDescription("ID utilisateur non fourni.");
             $embed->setColor(0xFF0000);
 
             $interaction->respondWithMessage(
@@ -61,24 +49,43 @@ class KickCommand
             return;
         }
 
+        $member = $interaction->member;
+
+        if (!$member->getPermissions()->ban_members) {
+            $embed = new Embed($discord);
+            $embed->setTitle("Accès refusé 🔒");
+            $embed->setDescription("Tu n’as pas la permission de débannir des membres.");
+            $embed->setColor(0xFF8800);
+
+            $interaction->respondWithMessage(
+                MessageBuilder::new()->addEmbed($embed)->setFlags(64)
+            );
+            return;
+        }
+
         $guild = $interaction->guild;
-        $guild->members->fetch($userId)->then(
-            function ($target) use ($interaction, $discord, $userId, $reason) {
-                $target->kick($reason)->then(
-                    function () use ($interaction, $discord, $target, $reason) {
+
+        // 🟡 On récupère l'utilisateur banni
+        $guild->bans->fetch($userId)->then(
+            function ($ban) use ($interaction, $discord, $guild, $userId) {
+                $username = $ban->user->username;
+
+                // 🔓 Suppression du bannissement
+                $guild->bans->delete($userId)->then(
+                    function () use ($interaction, $discord, $username) {
                         $embed = new Embed($discord);
-                        $embed->setTitle("✅ Membre expulsé");
-                        $embed->setDescription("**{$target->user->username}** a été expulsé.\n✏️ Raison : `$reason`");
-                        $embed->setColor(0x00AAFF);
+                        $embed->setTitle("✅ Utilisateur débanni");
+                        $embed->setDescription("**{$username}** a été débanni.");
+                        $embed->setColor(0x00FF00);
 
                         $interaction->respondWithMessage(
                             MessageBuilder::new()->addEmbed($embed)
                         );
                     },
-                    function () use ($interaction, $discord, $userId) {
+                    function () use ($interaction, $discord, $username) {
                         $embed = new Embed($discord);
                         $embed->setTitle("Erreur ❌");
-                        $embed->setDescription("Impossible d’expulser l’utilisateur `$userId`.");
+                        $embed->setDescription("Impossible de débannir **{$username}**. Vérifie les permissions du bot.");
                         $embed->setColor(0xFF0000);
 
                         $interaction->respondWithMessage(
@@ -90,7 +97,7 @@ class KickCommand
             function () use ($interaction, $discord, $userId) {
                 $embed = new Embed($discord);
                 $embed->setTitle("Erreur ❌");
-                $embed->setDescription("Utilisateur introuvable dans le serveur (`$userId`).");
+                $embed->setDescription("Aucun utilisateur banni avec l’ID `$userId`.");
                 $embed->setColor(0xFF0000);
 
                 $interaction->respondWithMessage(

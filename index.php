@@ -2,13 +2,13 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Poll\PollChecker;
-use XP\XPSystem;
-use Monolog\Logger;
-use Monolog\Handler\StreamHandler;
 use Discord\Discord;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use Poll\PollChecker;
+use XP\XPSystem;
 
 
 // AFFICHAGE DES LOGS DE DIFF NIVEAUX
@@ -94,19 +94,21 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
 
         $data = $builder->toArray();
         $commandName = $data['name'];
+
         $commands[$commandName] = $class;
 
         $discord->application->commands->save(
             new \Discord\Parts\Interactions\Command\Command($discord, $data)
         )->then(
-            function () use ($commandName) {
-                echo "✅  Commande enregistrée : /$commandName\n";
-            },
-            function ($e) use ($commandName) {
-                echo "❌  Erreur lors de l'enregistrement de /$commandName : " . $e->getMessage() . "\n";
-            }
+            fn() => print "✅  $commandName enregistrée\n",
+            fn($e) => print "❌  Erreur sur $commandName : {$e->getMessage()}\n"
         );
     }
+
+    if (isset($commands['help'])) {
+        \Commands\Utility\HelpCommand::setLoadedCommands($commands);
+    }
+
 
     // 🔥 Ajout du système d'XP à chaque message
     $discord->on(Event::MESSAGE_CREATE, function ($message) use ($xpSystem, $discord) {
@@ -122,6 +124,7 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
         } else {
             $interaction->respondWithMessage("Commande inconnue : `$name`", true);
         }
+        echo "➡ Appel de $name\n";
     });
 });
 
