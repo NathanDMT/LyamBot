@@ -1,10 +1,12 @@
 <?php
 
-
 namespace XP;
 
 use PDO;
 use Discord\Parts\Channel\Message;
+use Discord\Discord;
+use Discord\Parts\Embed\Embed;
+use Discord\Builders\MessageBuilder;
 
 class XPSystem
 {
@@ -15,12 +17,12 @@ class XPSystem
         $this->pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
     }
 
-    public function handleMessage(Message $message)
+    public function handleMessage(Message $message, Discord $discord)
     {
+        if ($message->author->bot) return;
+
         $userId = $message->author->id;
         $username = $message->author->username;
-
-        if ($message->author->bot) return;
 
         $stmt = $this->pdo->prepare("SELECT xp, level, last_message_at FROM users_activity WHERE user_id = ?");
         $stmt->execute([$userId]);
@@ -40,6 +42,17 @@ class XPSystem
 
             $this->pdo->prepare("UPDATE users_activity SET xp = ?, level = ?, username = ?, last_message_at = NOW() WHERE user_id = ?")
                 ->execute([$newXP, $newLevel, $username, $userId]);
+
+            // Envoie un message si changement de niveau
+            if ($newLevel > $user['level']) {
+                $embed = new Embed($discord);
+                $embed->setTitle("🎉 Niveau supérieur !")
+                    ->setDescription("<@$userId> est maintenant niveau **$newLevel** !")
+                    ->setColor(0x00ff00)
+                    ->setTimestamp();
+
+                $message->channel->sendMessage(MessageBuilder::new()->addEmbed($embed));
+            }
         } else {
             $this->pdo->prepare("INSERT INTO users_activity (user_id, username, xp, level, last_message_at) VALUES (?, ?, ?, ?, NOW())")
                 ->execute([$userId, $username, $gainXP, $this->calculerNiveau($gainXP)]);

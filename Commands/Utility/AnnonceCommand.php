@@ -5,14 +5,14 @@ namespace Commands\Utility;
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
+use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 
 class AnnonceCommand
 {
-    public static function register(Discord $discord)
+    public static function register(Discord $discord): CommandBuilder
     {
-        // Crée une option manuellement
         $option = new Option($discord, [
             'name' => 'message',
             'description' => 'Contenu de l’annonce',
@@ -26,14 +26,14 @@ class AnnonceCommand
             ->addOption($option);
     }
 
-    public static function handle(Interaction $interaction)
+    public static function handle(Interaction $interaction, Discord $discord): void
     {
         try {
             $contenu = null;
 
             foreach ($interaction->data->options as $option) {
-                if ($option['name'] === 'message') {
-                    $contenu = $option['value'];
+                if ($option->name === 'message') {
+                    $contenu = $option->value;
                     break;
                 }
             }
@@ -42,10 +42,17 @@ class AnnonceCommand
                 throw new \Exception("Le message est vide ou manquant.");
             }
 
-            $message = MessageBuilder::new()
-                ->setContent("📢 **Annonce :**\n" . $contenu);
+            $embed = new Embed($discord);
+            $embed->setTitle("📢 Annonce")
+                ->setDescription($contenu)
+                ->setColor(0x3498db)
+                ->setFooter("Annonce par {$interaction->user->username}")
+                ->setTimestamp();
 
-            $interaction->respondWithMessage($message);
+            $interaction->respondWithMessage(
+                MessageBuilder::new()->addEmbed($embed),
+                false
+            );
         } catch (\Throwable $e) {
             $interaction->respondWithMessage(
                 MessageBuilder::new()->setContent("❌ Erreur : " . $e->getMessage()),

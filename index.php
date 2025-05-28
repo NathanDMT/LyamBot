@@ -2,6 +2,7 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+use Poll\PollChecker;
 use XP\XPSystem;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
@@ -75,6 +76,12 @@ $xpSystem = new XPSystem();
 $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem) {
     echo "Bot connecté en tant que {$discord->user->username}\n";
 
+    $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
+
+    // Lancer le poll checker
+    $pollChecker = new PollChecker($pdo, $discord);
+    $pollChecker->start();
+
     $commands = [];
 
     foreach ($commandClasses as $class) {
@@ -103,8 +110,8 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
     }
 
     // 🔥 Ajout du système d'XP à chaque message
-    $discord->on(Event::MESSAGE_CREATE, function ($message) use ($xpSystem) {
-        $xpSystem->handleMessage($message);
+    $discord->on(Event::MESSAGE_CREATE, function ($message) use ($xpSystem, $discord) {
+        $xpSystem->handleMessage($message, $discord);
     });
 
     // 🔁 Gestion des commandes

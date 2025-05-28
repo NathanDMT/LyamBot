@@ -7,7 +7,8 @@
     "autoload": {
         "psr-4": {
             "Commands\\": "commands/",
-            "XP\\": "src/XP/"
+            "XP\\": "src/XP/",
+            "Poll\\": "src/Poll/"
         }
     }
 }
