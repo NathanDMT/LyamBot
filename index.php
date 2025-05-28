@@ -87,6 +87,13 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
     foreach ($commandClasses as $class) {
         $builder = $class::register($discord);
 
+        if (isset($discord->application->id)) {
+            $builder->setApplicationId($discord->application->id);
+            $discord->application->commands->save($builder);
+        } else {
+            echo "❌ Application ID manquant.\n";
+        }
+
         if (!is_object($builder) || !method_exists($builder, 'toArray')) {
             echo "❌  {$class}::register() ne retourne pas un objet valide CommandBuilder\n";
             continue;

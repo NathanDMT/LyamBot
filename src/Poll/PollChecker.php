@@ -37,12 +37,28 @@ class PollChecker
             $channel = $this->discord->getChannel($channelId);
             if (!$channel) continue;
 
-            $channel->messages->fetch($messageId)->done(function ($message) use ($poll) {
-                $message->reply("🛑 Le sondage est terminé !");
-                $message->react('🔒');
-            });
+            $channel->messages->fetch($messageId)->then(function ($message) use ($poll) {
+                $yesVotes = 0;
+                $noVotes = 0;
 
-            $this->pdo->prepare("UPDATE polls SET is_closed = 1 WHERE id = ?")->execute([$poll['id']]);
+                foreach ($message->reactions as $reaction) {
+                    if ($reaction->emoji->name === '✅') {
+                        $yesVotes = $reaction->count - 1; // -1 pour le bot lui-même
+                    } elseif ($reaction->emoji->name === '❌') {
+                        $noVotes = $reaction->count - 1;
+                    }
+                }
+
+                $resultMessage = "🛑 Le sondage est terminé !\n"
+                    . "✅ Oui : **{$yesVotes}**\n"
+                    . "❌ Non : **{$noVotes}**";
+
+                $message->reply($resultMessage);
+                $message->react('🔒');
+
+                // Marque comme clôturé
+                $this->pdo->prepare("UPDATE polls SET is_closed = 1 WHERE id = ?")->execute([$poll['id']]);
+            });
         }
     }
 }
