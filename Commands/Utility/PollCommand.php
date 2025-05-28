@@ -56,24 +56,20 @@ class PollCommand
             return;
         }
 
-        // Crée l'embed
         $embed = new Embed($discord);
-        $embed->setTitle('📊 Nouveau Sondage')
-            ->setDescription($question)
+        $embed->setTitle('📊 Sondage :')
+            ->setDescription('**'.$question.'**')
             ->addFieldValues('Durée', "$duration minute(s)", true)
             ->setColor(0x0099ff)
             ->setTimestamp();
 
-        // ✅ Accuse réception (remplace deferReply)
         $interaction->acknowledge();
 
-        // Envoie le sondage dans le salon
         $interaction->sendFollowUpMessage(MessageBuilder::new()->addEmbed($embed))->then(function ($message) use ($question, $duration) {
-            // Ajoute les réactions
-            $message->react('✅');
-            $message->react('❌');
+                // Ajoute les réactions
+                $message->react('✅');
+                $message->react('❌');
 
-            // Enregistre en base
             $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
             $stmt = $pdo->prepare("INSERT INTO polls (message_id, channel_id, question, fin_at) VALUES (?, ?, ?, ?)");
 

@@ -4,6 +4,8 @@ namespace Poll;
 
 use PDO;
 use Discord\Discord;
+use Discord\Parts\Embed\Embed;
+use Discord\Builders\MessageBuilder;
 use React\EventLoop\Loop;
 
 class PollChecker
@@ -20,7 +22,7 @@ class PollChecker
     public function start()
     {
         // Vérifie toutes les 60 secondes
-        Loop::addPeriodicTimer(60, function () {
+        Loop::addPeriodicTimer(30, function () {
             $this->checkExpiredPolls();
         });
     }
@@ -31,33 +33,35 @@ class PollChecker
         $polls = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($polls as $poll) {
-            $channelId = $poll['channel_id'];
-            $messageId = $poll['message_id'];
-
-            $channel = $this->discord->getChannel($channelId);
+            $channel = $this->discord->getChannel($poll['channel_id']);
             if (!$channel) continue;
 
-            $channel->messages->fetch($messageId)->then(function ($message) use ($poll) {
-                $yesVotes = 0;
-                $noVotes = 0;
-
-                foreach ($message->reactions as $reaction) {
-                    if ($reaction->emoji->name === '✅') {
-                        $yesVotes = $reaction->count - 1; // -1 pour le bot lui-même
-                    } elseif ($reaction->emoji->name === '❌') {
-                        $noVotes = $reaction->count - 1;
-                    }
+            $channel->messages->fetch($poll['message_id'])->then(function ($message) use ($poll, $channel) {
+                if (!$message) {
+                    echo "Message introuvable pour le sondage ID {$poll['id']}\n";
+                    $this->pdo->prepare("UPDATE polls SET is_closed = 1 WHERE id = ?")->execute([$poll['id']]);
+                    return;
                 }
 
-                $resultMessage = "🛑 Le sondage est terminé !\n"
-                    . "✅ Oui : **{$yesVotes}**\n"
-                    . "❌ Non : **{$noVotes}**";
+                $message->reactions->fetch('✅')->then(function ($yesReaction) use ($message, $poll, $channel) {
+                    $yesVotes = max(0, ($yesReaction->count ?? 1) - 1);
 
-                $message->reply($resultMessage);
-                $message->react('🔒');
+                    $message->reactions->fetch('❌')->then(function ($noReaction) use ($yesVotes, $message, $poll, $channel) {
+                        $noVotes = max(0, ($noReaction->count ?? 1) - 1);
 
-                // Marque comme clôturé
-                $this->pdo->prepare("UPDATE polls SET is_closed = 1 WHERE id = ?")->execute([$poll['id']]);
+                        $embed = new Embed($this->discord);
+                        $embed->setTitle("Résultat du sondage :")
+                            ->setDescription("{$poll['question']}")
+                            ->addFieldValues("✅", "{$yesVotes} vote(s)", true)
+                            ->addFieldValues("❌", "{$noVotes} vote(s)", true)
+                            ->setColor(0xffcc00)
+                            ->setTimestamp();
+
+                        $channel->sendMessage(MessageBuilder::new()->addEmbed($embed));
+                        $message->delete();
+                        $this->pdo->prepare("UPDATE polls SET is_closed = 1 WHERE id = ?")->execute([$poll['id']]);
+                    });
+                });
             });
         }
     }
