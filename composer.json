@@ -9,7 +9,8 @@
             "Commands\\": "Commands/",
             "XP\\": "src/XP/",
             "Poll\\": "src/Poll/",
-            "Helpers\\": "src/Helpers/"
+            "Helpers\\": "src/Helpers/",
+            "Owner\\": "src/Owner/"
         }
     }
 }

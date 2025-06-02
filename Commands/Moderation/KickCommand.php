@@ -19,9 +19,9 @@ class KickCommand
 
         $userOption = new Option($discord);
         $userOption
-            ->setName('user_id')
+            ->setName('user')
             ->setDescription('ID de l’utilisateur à expulser')
-            ->setType(3) // STRING
+            ->setType(6)
             ->setRequired(true);
 
         $reasonOption = new Option($discord);
@@ -40,7 +40,7 @@ class KickCommand
         $reason = 'Aucune raison spécifiée';
 
         foreach ($interaction->data->options as $option) {
-            if ($option->name === 'user_id') {
+            if ($option->name === 'user') {
                 $userId = $option->value;
             }
             if ($option->name === 'reason') {

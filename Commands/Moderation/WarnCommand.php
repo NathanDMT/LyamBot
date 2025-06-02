@@ -21,7 +21,7 @@ class WarnCommand
                 (new Option($discord))
                     ->setName('userid')
                     ->setDescription("L'ID de l'utilisateur à avertir")
-                    ->setType(3) // STRING
+                    ->setType(6) //
                     ->setRequired(true)
             )
             ->addOption(
@@ -97,6 +97,6 @@ class WarnCommand
         $embed->setDescription("L'utilisateur <@$userId> a été averti.\n✏️ Raison : `$reason`");
         $embed->setColor(0xFFA500);
 
-        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed));
+        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
     }
 }

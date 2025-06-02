@@ -10,6 +10,9 @@ use Monolog\Logger;
 use Poll\PollChecker;
 use XP\XPSystem;
 
+$RELOAD_COMMANDS = true;
+
+$startTime = microtime(true);
 
 // AFFICHAGE DES LOGS DE DIFF NIVEAUX
 $logger = new Logger('discord');
@@ -73,8 +76,9 @@ $discord = new Discord([
 $commandClasses = getCommandClasses();
 $xpSystem = new XPSystem();
 
-$discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem) {
-    echo "Bot connecté en tant que {$discord->user->username}\n";
+$discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem, $startTime, $RELOAD_COMMANDS) {
+    echo "✅ Connecté en tant que {$discord->user->username}\n";
+    printf("🚀 Démarrage en %.2f sec\n", microtime(true) - $startTime);
 
     $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
 
@@ -97,12 +101,17 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
 
         $commands[$commandName] = $class;
 
-        $discord->application->commands->save(
-            new \Discord\Parts\Interactions\Command\Command($discord, $data)
-        )->then(
-            fn() => print "✅  $commandName enregistrée\n",
-            fn($e) => print "❌  Erreur sur $commandName : {$e->getMessage()}\n"
-        );
+        if ($RELOAD_COMMANDS) {
+            $discord->application->commands->save(
+                new \Discord\Parts\Interactions\Command\Command($discord, $data)
+            )->then(
+                fn() => print "✅  $commandName enregistrée\n",
+                fn($e) => print "❌  Erreur sur $commandName : {$e->getMessage()}\n"
+            );
+        } else {
+            echo "⏩  $commandName chargée sans mise à jour API\n";
+        }
+
     }
 
     if (isset($commands['help'])) {
@@ -117,14 +126,25 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
 
     // 🔁 Gestion des commandes
     $discord->on(Event::INTERACTION_CREATE, function ($interaction) use ($commands, $discord) {
-        $name = $interaction->data->name;
+        if ($interaction->type === \Discord\InteractionType::APPLICATION_COMMAND) {
+            $name = $interaction->data->name;
+            echo "➡ Commande slash : $name\n";
 
-        if (isset($commands[$name])) {
-            $commands[$name]::handle($interaction, $discord);
-        } else {
-            $interaction->respondWithMessage("Commande inconnue : `$name`", true);
+            if (isset($commands[$name])) {
+                $commands[$name]::handle($interaction, $discord);
+            } else {
+                $interaction->respondWithMessage("Commande inconnue : `$name`", true);
+            }
+
+        } elseif ($interaction->type === \Discord\InteractionType::MESSAGE_COMPONENT) {
+            $customId = $interaction->data->custom_id ?? '';
+            echo "➡ Interaction bouton : $customId\n";
+
+            if (str_starts_with($customId, 'warnlist_')) {
+                echo "➡ Appel de handleButton()\n";
+                \Commands\Moderation\WarnlistCommand::handleButton($interaction, $discord);
+            }
         }
-        echo "➡ Appel de $name\n";
     });
 });
 
