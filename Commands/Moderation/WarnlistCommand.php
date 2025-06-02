@@ -110,7 +110,6 @@ class WarnlistCommand
             MessageBuilder::new()
                 ->addEmbed($embed)
                 ->addComponent($components)
-                ->setFlags(64)
         )->then(
             fn() => print "✅ Page mise à jour vers {$data['page']} pour message $messageId\n",
             fn($e) => print "❌ Erreur updateMessage : {$e->getMessage()}\n"
@@ -135,7 +134,7 @@ class WarnlistCommand
         foreach (array_slice($warns, $start, $perPage) as $i => $warn) {
             $index = $start + $i + 1;
             $date = date('d/m/Y H:i', strtotime($warn['created_at']));
-            $embed->addFieldValues("Warn #$index", "🕒 `$date`\n✏️ {$warn['reason']}\nPar : <@{$warn['warned_by']}>");
+            $embed->addFieldValues("• Warn #$index", "Date : `$date`\nRaison : {$warn['reason']}\nPar : <@{$warn['warned_by']}>");
         }
 
         return $embed;
