@@ -8,30 +8,30 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
+use Events\ModLogger;
+use Events\LogColors;
 
 class KickCommand
 {
     public static function register(Discord $discord): CommandBuilder
     {
-        $command = CommandBuilder::new()
+        return CommandBuilder::new()
             ->setName('kick')
-            ->setDescription('Expulse un membre du serveur');
-
-        $userOption = new Option($discord);
-        $userOption
-            ->setName('user')
-            ->setDescription('ID de l’utilisateur à expulser')
-            ->setType(6)
-            ->setRequired(true);
-
-        $reasonOption = new Option($discord);
-        $reasonOption
-            ->setName('reason')
-            ->setDescription('Raison du kick')
-            ->setType(3)
-            ->setRequired(false);
-
-        return $command->addOption($userOption)->addOption($reasonOption);
+            ->setDescription('Expulse un membre du serveur')
+            ->addOption(
+                (new Option($discord))
+                    ->setName('user')
+                    ->setDescription('ID de l’utilisateur à expulser')
+                    ->setType(6)
+                    ->setRequired(true)
+            )
+            ->addOption(
+                (new Option($discord))
+                    ->setName('reason')
+                    ->setDescription('Raison du kick')
+                    ->setType(3)
+                    ->setRequired(false)
+            );
     }
 
     public static function handle(Interaction $interaction, Discord $discord): void
@@ -51,51 +51,55 @@ class KickCommand
         $member = $interaction->member;
         if (!$member->getPermissions()->kick_members) {
             $embed = new Embed($discord);
-            $embed->setTitle("Accès refusé ❌");
-            $embed->setDescription("Tu n’as pas la permission d’expulser des membres.");
-            $embed->setColor(0xFF0000);
-
-            $interaction->respondWithMessage(
-                MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-            );
+            $embed->setTitle("Accès refusé ❌")
+                ->setDescription("Tu n’as pas la permission d’expulser des membres.")
+                ->setColor(0xFF0000);
+            $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
 
-        $guild = $interaction->guild;
-        $guild->members->fetch($userId)->then(
-            function ($target) use ($interaction, $discord, $userId, $reason) {
-                $target->kick($reason)->then(
-                    function () use ($interaction, $discord, $target, $reason) {
-                        $embed = new Embed($discord);
-                        $embed->setTitle("✅ Membre expulsé");
-                        $embed->setDescription("**{$target->user->username}** a été expulsé.\n✏️ Raison : `$reason`");
-                        $embed->setColor(0x00AAFF);
+        $staffUser = $interaction->member?->user;
+        $staffTag = $staffUser?->username ?? 'Inconnu';
+        $staffId = $staffUser?->id ?? '0';
 
-                        $interaction->respondWithMessage(
-                            MessageBuilder::new()->addEmbed($embed)
+        $guild = $interaction->guild;
+
+        $guild->members->fetch($userId)->then(
+            function ($target) use ($interaction, $discord, $guild, $userId, $reason, $staffTag, $staffId) {
+                $target->kick($reason)->then(
+                    function () use ($interaction, $discord, $target, $reason, $guild, $staffTag, $staffId) {
+                        $embed = new Embed($discord);
+                        $embed->setTitle("✅ Membre expulsé")
+                            ->setDescription("**{$target->user->username}** a été expulsé.\n✏️ Raison : `$reason`")
+                            ->setColor(0x00AAFF);
+                        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed));
+
+                        // Log
+                        ModLogger::logAction(
+                            $discord,
+                            $guild->id,
+                            'Kick',
+                            $target->user->id,
+                            $staffId,
+                            "Expulsion de **{$target->user->username}**\n✏️ `$reason`",
+                            LogColors::get('Kick')
                         );
                     },
                     function () use ($interaction, $discord, $userId) {
                         $embed = new Embed($discord);
-                        $embed->setTitle("Erreur ❌");
-                        $embed->setDescription("Impossible d’expulser l’utilisateur `$userId`.");
-                        $embed->setColor(0xFF0000);
-
-                        $interaction->respondWithMessage(
-                            MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-                        );
+                        $embed->setTitle("Erreur ❌")
+                            ->setDescription("Impossible d’expulser l’utilisateur `$userId`.")
+                            ->setColor(0xFF0000);
+                        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
                     }
                 );
             },
             function () use ($interaction, $discord, $userId) {
                 $embed = new Embed($discord);
-                $embed->setTitle("Erreur ❌");
-                $embed->setDescription("Utilisateur introuvable dans le serveur (`$userId`).");
-                $embed->setColor(0xFF0000);
-
-                $interaction->respondWithMessage(
-                    MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-                );
+                $embed->setTitle("Erreur ❌")
+                    ->setDescription("Utilisateur introuvable dans le serveur (`$userId`).")
+                    ->setColor(0xFF0000);
+                $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             }
         );
     }

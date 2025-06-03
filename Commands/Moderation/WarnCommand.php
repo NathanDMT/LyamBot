@@ -9,6 +9,8 @@ use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 use PDO;
+use Events\ModLogger;
+use Events\LogColors;
 
 class WarnCommand
 {
@@ -21,7 +23,7 @@ class WarnCommand
                 (new Option($discord))
                     ->setName('userid')
                     ->setDescription("L'ID de l'utilisateur à avertir")
-                    ->setType(6) //
+                    ->setType(6) // USER
                     ->setRequired(true)
             )
             ->addOption(
@@ -49,9 +51,9 @@ class WarnCommand
 
         if (!$userId || !$reason) {
             $embed = new Embed($discord);
-            $embed->setTitle("Erreur ❌");
-            $embed->setDescription("Les champs `userid` et `raison` sont obligatoires.");
-            $embed->setColor(0xFF0000);
+            $embed->setTitle("Erreur ❌")
+                ->setDescription("Les champs `userid` et `raison` sont obligatoires.")
+                ->setColor(0xFF0000);
             $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
@@ -61,41 +63,54 @@ class WarnCommand
 
         if (!$member->getPermissions()->kick_members) {
             $embed = new Embed($discord);
-            $embed->setTitle("Accès refusé 🔒");
-            $embed->setDescription("Tu n’as pas la permission de warn les membres.");
-            $embed->setColor(0xFF0000);
+            $embed->setTitle("Accès refusé 🔒")
+                ->setDescription("Tu n’as pas la permission de warn les membres.")
+                ->setColor(0xFF0000);
             $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
 
-        // Connexion à la base de données
+        // Enregistrement en BDD
         $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
-
-        // Enregistrement du warn
         $stmt = $pdo->prepare("INSERT INTO warnings (user_id, warned_by, reason, server_id) VALUES (?, ?, ?, ?)");
         $stmt->execute([$userId, $member->user->id, $reason, $guild->id]);
 
-        // Nombre total de warns dans ce serveur
+        // Log modération
+        $staffUser = $interaction->member?->user;
+        $staffTag = $staffUser?->username ?? 'Inconnu';
+        $staffId = $staffUser?->id ?? '0';
+
+        ModLogger::logAction(
+            $discord,
+            $interaction->guild_id,
+            'Avertissement',
+            $userId,
+            $staffId,
+            $reason,
+            LogColors::get('Warn')
+        );
+
+        // Compte les warns
         $countStmt = $pdo->prepare("SELECT COUNT(*) FROM warnings WHERE user_id = ? AND server_id = ?");
         $countStmt->execute([$userId, $guild->id]);
-        $totalWarns = (int)$countStmt->fetchColumn();
+        $totalWarns = (int) $countStmt->fetchColumn();
 
-        // Essayer d'envoyer un MP
+        // Tente d'envoyer un MP
         $discord->users->fetch($userId)->then(function ($user) use ($reason, $guild, $totalWarns, $discord) {
             $user->getPrivateChannel()->then(function ($channel) use ($user, $reason, $guild, $totalWarns, $discord) {
                 $embed = new Embed($discord);
-                $embed->setTitle("⚠️ Tu as reçu un avertissement");
-                $embed->setDescription("Serveur : **{$guild->name}**\nRaison : `$reason`\nTu as désormais **{$totalWarns}** avertissement(s).");
-                $embed->setColor(0xFFA500);
+                $embed->setTitle("⚠️ Tu as reçu un avertissement")
+                    ->setDescription("Serveur : **{$guild->name}**\nRaison : `$reason`\nTu as désormais **{$totalWarns}** avertissement(s).")
+                    ->setColor(0xFFA500);
                 $channel->sendMessage(MessageBuilder::new()->addEmbed($embed));
             });
         });
 
-        // ✅ Réponse publique
+        // Réponse publique
         $embed = new Embed($discord);
-        $embed->setTitle("⚠️ Avertissement donné");
-        $embed->setDescription("L'utilisateur <@$userId> a été averti.\n✏️ Raison : `$reason`");
-        $embed->setColor(0xFFA500);
+        $embed->setTitle("⚠️ Avertissement donné")
+            ->setDescription("L'utilisateur <@$userId> a été averti.\n✏️ Raison : `$reason`")
+            ->setColor(0xFFA500);
 
         $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
     }

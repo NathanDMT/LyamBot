@@ -2,9 +2,17 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+use Commands\Moderation\HistoryCommand;
+use Commands\Moderation\WarnlistCommand;
 use Discord\Discord;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
+use Events\AnnonceGuildBoost;
+use Events\AnnonceGuildMemberAdd;
+use Events\AnnonceGuildMemberRemove;
+use Events\LoggerBoost;
+use Events\LoggerJoin;
+use Events\LoggerLeave;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Poll\PollChecker;
@@ -12,20 +20,21 @@ use XP\XPSystem;
 
 $RELOAD_COMMANDS = true;
 
+// CALCUL TEMPS DE LANCEMENT
 $startTime = microtime(true);
 
-// AFFICHAGE DES LOGS DE DIFF NIVEAUX
+// DESACTIVE LES LOGS INTEMPESSTIVES
 $logger = new Logger('discord');
 $logger->pushHandler(new StreamHandler('php://stdout', Logger::WARNING));
 
+// MODIFIE LA LANGUE DES INFOS D'EMBEDS DE JOIN/LEAVES...
+\Carbon\Carbon::setLocale('fr');
 
-// MASQUAGE DU TOKEN
+// LOAD LE .ENV POUR LA CONNEXION A LA BDD
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 $token = $_ENV['DISCORD_TOKEN'];
 
-
-// FORCE .ENV A SE CHARGER
 $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 foreach ($lines as $line) {
     if (str_starts_with($line, '#') || !str_contains($line, '=')) continue;
@@ -33,31 +42,24 @@ foreach ($lines as $line) {
     putenv(trim($name) . '=' . trim($value));
 }
 
-
-// Chargement récursif de toutes les commandes (y compris sous-dossiers)
 function getCommandClasses(string $namespace = 'Commands\\', string $directory = __DIR__ . '/commands'): array
 {
     $classes = [];
-
     $iterator = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($directory),
         RecursiveIteratorIterator::LEAVES_ONLY
     );
-
     foreach ($iterator as $file) {
-        if ($file->isFile() && preg_match('/^([A-Z][A-Za-z0-9]*)Command\.php$/', $file->getFilename())) {
+        if ($file->isFile() && preg_match('/^([A-Z][A-Za-z0-9]*)Command\\.php$/', $file->getFilename())) {
             $relativePath = str_replace([$directory . DIRECTORY_SEPARATOR, '.php'], '', $file->getPathname());
             $relativePath = str_replace(DIRECTORY_SEPARATOR, '\\', $relativePath);
             $class = $namespace . $relativePath;
-
             require_once $file->getPathname();
-
             if (class_exists($class)) {
                 $classes[] = $class;
             }
         }
     }
-
     return $classes;
 }
 
@@ -76,13 +78,37 @@ $discord = new Discord([
 $commandClasses = getCommandClasses();
 $xpSystem = new XPSystem();
 
-$discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem, $startTime, $RELOAD_COMMANDS) {
+$discord->on('ready', function (Discord $discord) use ($commandClasses, $xpSystem, $startTime, $RELOAD_COMMANDS) {
     echo "✅ Connecté en tant que {$discord->user->username}\n";
     printf("🚀 Démarrage en %.2f sec\n", microtime(true) - $startTime);
 
-    $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
+    $host = $_ENV['DB_HOST'] ?? 'localhost';
+    $db   = $_ENV['DB_NAME'] ?? 'lyam';
+    $user = $_ENV['DB_USER'] ?? 'root';
+    $pass = $_ENV['DB_PASS'] ?? 'root';
+    $charset = $_ENV['DB_CHARSET'] ?? 'utf8mb4';
 
-    // Lancer le poll checker
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+    } catch (PDOException $e) {
+        echo "❌ Erreur de connexion PDO : " . $e->getMessage() . "\n";
+        exit(1);
+    }
+
+    // Enregistrement des events UNE FOIS au démarrage :
+    LoggerJoin::register($discord);
+    LoggerLeave::register($discord);
+    LoggerBoost::register($discord);
+
+    AnnonceGuildBoost::register($discord);
+    AnnonceGuildMemberAdd::register($discord);
+    AnnonceGuildMemberRemove::register($discord);
+
     $pollChecker = new PollChecker($pdo, $discord);
     $pollChecker->start();
 
@@ -98,51 +124,50 @@ $discord->on('init', function (Discord $discord) use ($commandClasses, $xpSystem
 
         $data = $builder->toArray();
         $commandName = $data['name'];
-
         $commands[$commandName] = $class;
 
         if ($RELOAD_COMMANDS) {
-            $discord->application->commands->save(
-                new \Discord\Parts\Interactions\Command\Command($discord, $data)
-            )->then(
+            $command = new \Discord\Parts\Interactions\Command\Command($discord, $data);
+
+            // ✅ Fix : on renseigne l'ID de l'application si absent
+            if (empty($command->application_id)) {
+                $command->application_id = $discord->application->id;
+            }
+
+            $discord->application->commands->save($command)->then(
                 fn() => print "✅  $commandName enregistrée\n",
                 fn($e) => print "❌  Erreur sur $commandName : {$e->getMessage()}\n"
             );
-        } else {
-            echo "⏩  $commandName chargée sans mise à jour API\n";
         }
-
     }
 
-    if (isset($commands['help'])) {
+        if (isset($commands['help'])) {
         \Commands\Utility\HelpCommand::setLoadedCommands($commands);
     }
 
-
-    // 🔥 Ajout du système d'XP à chaque message
     $discord->on(Event::MESSAGE_CREATE, function ($message) use ($xpSystem, $discord) {
         $xpSystem->handleMessage($message, $discord);
     });
 
-    // 🔁 Gestion des commandes
-    $discord->on(Event::INTERACTION_CREATE, function ($interaction) use ($commands, $discord) {
+    $discord->on(Event::INTERACTION_CREATE, function ($interaction) use ($pdo, $commands, $discord) {
         if ($interaction->type === \Discord\InteractionType::APPLICATION_COMMAND) {
             $name = $interaction->data->name;
             echo "➡ Commande slash : $name\n";
 
             if (isset($commands[$name])) {
+                // ✅ Laisse la commande gérer entièrement la réponse (pas de acknowledge ici)
                 $commands[$name]::handle($interaction, $discord);
             } else {
                 $interaction->respondWithMessage("Commande inconnue : `$name`", true);
             }
-
         } elseif ($interaction->type === \Discord\InteractionType::MESSAGE_COMPONENT) {
             $customId = $interaction->data->custom_id ?? '';
             echo "➡ Interaction bouton : $customId\n";
 
             if (str_starts_with($customId, 'warnlist_')) {
-                echo "➡ Appel de handleButton()\n";
-                \Commands\Moderation\WarnlistCommand::handleButton($interaction, $discord);
+                WarnlistCommand::handleButton($interaction, $discord);
+            } elseif (str_starts_with($customId, 'history_')) {
+                HistoryCommand::handleButton($interaction, $discord);
             }
         }
     });

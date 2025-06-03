@@ -1,5 +1,5 @@
 <?php
-namespace Commands\XPModeration;
+namespace Commands\XP_Moderation;
 
 use Discord\Discord;
 use Discord\Builders\CommandBuilder;

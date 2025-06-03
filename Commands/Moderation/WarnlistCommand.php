@@ -10,7 +10,10 @@ use Discord\Builders\Components\Button;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
+use Events\LogColors;
 use PDO;
+use Events\ModLogger;
+
 
 class WarnlistCommand
 {
@@ -80,6 +83,23 @@ class WarnlistCommand
                 echo "❌ Impossible de déterminer le messageId à partir de la réponse.\n";
             }
         });
+
+        // Récupération du tag de l'utilisateur modérateur
+        $staffTag = $interaction->member?->user?->tag ?? 'Inconnu';
+
+        // Log de la consultation dans #mod-logs ou par ID
+        $user = $interaction->member?->user;
+        $staffId = $user?->id ?? '0';
+
+        ModLogger::logAction(
+            $discord,
+            $interaction->guild_id,
+            'Consultation des warns',
+            $userId,
+            $staffId,
+            'Consultation via /warnlist',
+            LogColors::get('Warnlist')
+        );
     }
 
     public static function handleButton(Interaction $interaction, Discord $discord): void
@@ -89,20 +109,24 @@ class WarnlistCommand
 
         if (!isset(self::$paginationData[$messageId])) {
             echo "❌ Aucune pagination trouvée pour le message $messageId\n";
+            // ❌ NE PAS refaire de acknowledge ici
             return;
         }
 
         $data = &self::$paginationData[$messageId];
         $totalPages = ceil(count($data['warns']) / 5);
+        $oldPage = $data['page'];
 
         if ($customId === 'warnlist_next' && $data['page'] < $totalPages - 1) {
             $data['page']++;
         } elseif ($customId === 'warnlist_prev' && $data['page'] > 0) {
             $data['page']--;
         } else {
+            // ❌ Pas de changement → on ne fait rien de plus (déjà acknowledged dans index.php)
             return;
         }
 
+        // ✅ Mise à jour du message
         $embed = self::buildEmbed($discord, $data['warns'], $data['userId'], $data['page']);
         $components = self::buildButtons($data['page'], $totalPages);
 
@@ -115,6 +139,7 @@ class WarnlistCommand
             fn($e) => print "❌ Erreur updateMessage : {$e->getMessage()}\n"
         );
     }
+
 
     private static function buildEmbed(Discord $discord, array $warns, string $userId, int $page): Embed
     {

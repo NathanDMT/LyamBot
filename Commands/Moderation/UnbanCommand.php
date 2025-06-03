@@ -8,23 +8,23 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
+use Events\ModLogger;
+use Events\LogColors;
 
 class UnbanCommand
 {
     public static function register(Discord $discord): CommandBuilder
     {
-        $command = CommandBuilder::new()
+        return CommandBuilder::new()
             ->setName('unban')
-            ->setDescription('Débannir un utilisateur via son ID');
-
-        $userOption = new Option($discord);
-        $userOption
-            ->setName('userid')
-            ->setDescription('ID de l’utilisateur à débannir')
-            ->setType(3) // STRING
-            ->setRequired(true);
-
-        return $command->addOption($userOption);
+            ->setDescription('Débannir un utilisateur via son ID')
+            ->addOption(
+                (new Option($discord))
+                    ->setName('userid')
+                    ->setDescription("ID de l’utilisateur à débannir")
+                    ->setType(3)
+                    ->setRequired(true)
+            );
     }
 
     public static function handle(Interaction $interaction, Discord $discord): void
@@ -39,13 +39,10 @@ class UnbanCommand
 
         if (!$userId) {
             $embed = new Embed($discord);
-            $embed->setTitle("Erreur ❌");
-            $embed->setDescription("ID utilisateur non fourni.");
-            $embed->setColor(0xFF0000);
-
-            $interaction->respondWithMessage(
-                MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-            );
+            $embed->setTitle("Erreur ❌")
+                ->setDescription("ID utilisateur non fourni.")
+                ->setColor(0xFF0000);
+            $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
 
@@ -53,56 +50,58 @@ class UnbanCommand
 
         if (!$member->getPermissions()->ban_members) {
             $embed = new Embed($discord);
-            $embed->setTitle("Accès refusé 🔒");
-            $embed->setDescription("Tu n’as pas la permission de débannir des membres.");
-            $embed->setColor(0xFF8800);
-
-            $interaction->respondWithMessage(
-                MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-            );
+            $embed->setTitle("Accès refusé 🔒")
+                ->setDescription("Tu n’as pas la permission de débannir des membres.")
+                ->setColor(0xFF8800);
+            $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
 
         $guild = $interaction->guild;
+        $staffUser = $interaction->member?->user;
+        $staffTag = $staffUser?->username ?? 'Inconnu';
+        $staffId = $staffUser?->id ?? '0';
 
-        // 🟡 On récupère l'utilisateur banni
+        // 🔍 Récupération de l'utilisateur banni
         $guild->bans->fetch($userId)->then(
-            function ($ban) use ($interaction, $discord, $guild, $userId) {
+            function ($ban) use ($interaction, $discord, $guild, $userId, $staffTag, $staffId) {
                 $username = $ban->user->username;
 
-                // 🔓 Suppression du bannissement
+                // ✅ Suppression du bannissement
                 $guild->bans->delete($userId)->then(
-                    function () use ($interaction, $discord, $username) {
+                    function () use ($interaction, $discord, $guild, $username, $userId, $staffTag, $staffId) {
                         $embed = new Embed($discord);
-                        $embed->setTitle("✅ Utilisateur débanni");
-                        $embed->setDescription("**{$username}** a été débanni.");
-                        $embed->setColor(0x00FF00);
+                        $embed->setTitle("✅ Utilisateur débanni")
+                            ->setDescription("**{$username}** a été débanni.")
+                            ->setColor(0x00FF00);
+                        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed));
 
-                        $interaction->respondWithMessage(
-                            MessageBuilder::new()->addEmbed($embed)
+                        // 📝 Log
+                        ModLogger::logAction(
+                            $discord,
+                            $guild->id,
+                            'Unban',
+                            $userId,
+                            $staffId,
+                            "Débannissement de **{$username}** via /unban",
+                            LogColors::get('Unban')
                         );
                     },
                     function () use ($interaction, $discord, $username) {
                         $embed = new Embed($discord);
-                        $embed->setTitle("Erreur ❌");
-                        $embed->setDescription("Impossible de débannir **{$username}**. Vérifie les permissions du bot.");
-                        $embed->setColor(0xFF0000);
-
-                        $interaction->respondWithMessage(
-                            MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-                        );
+                        $embed->setTitle("Erreur ❌")
+                            ->setDescription("Impossible de débannir **{$username}**. Vérifie les permissions du bot.")
+                            ->setColor(0xFF0000);
+                        $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
                     }
                 );
             },
             function () use ($interaction, $discord, $userId) {
                 $embed = new Embed($discord);
-                $embed->setTitle("Erreur ❌");
-                $embed->setDescription("Aucun utilisateur banni avec l’ID `$userId`.");
-                $embed->setColor(0xFF0000);
-
-                $interaction->respondWithMessage(
-                    MessageBuilder::new()->addEmbed($embed)->setFlags(64)
-                );
+                $embed->setTitle("Erreur ❌")
+                    ->setDescription("Aucun utilisateur banni avec l’ID `$userId`.")
+                    ->setColor(0xFF0000);
+                $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             }
         );
     }

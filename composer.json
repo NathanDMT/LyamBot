@@ -2,7 +2,8 @@
     "require": {
         "team-reflex/discord-php": "^10.7",
         "vlucas/phpdotenv": "^5.6",
-      "ext-pdo": "*"
+      "ext-pdo": "*",
+        "nesbot/carbon": "^3.9"
     },
     "autoload": {
         "psr-4": {
@@ -10,7 +11,11 @@
             "XP\\": "src/XP/",
             "Poll\\": "src/Poll/",
             "Helpers\\": "src/Helpers/",
-            "Owner\\": "src/Owner/"
+            "Owner\\": "src/Owner/",
+            "Util\\": "src/Util/",
+            "Game\\": "src/Game/",
+            "Logs\\": "src/Logs/",
+            "Events\\": "src/Events"
         }
     }
 }

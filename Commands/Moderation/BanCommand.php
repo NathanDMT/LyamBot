@@ -8,30 +8,30 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
+use Events\ModLogger;
+use Events\LogColors;
 
 class BanCommand
 {
     public static function register(Discord $discord): CommandBuilder
     {
-        $command = CommandBuilder::new()
+        return CommandBuilder::new()
             ->setName('ban')
-            ->setDescription('Bannir un utilisateur même s’il n’est pas dans le serveur');
-
-        $userOption = new Option($discord);
-        $userOption
-            ->setName('user_id')
-            ->setDescription('ID de l’utilisateur à bannir')
-            ->setType(3) // STRING
-            ->setRequired(true);
-
-        $reasonOption = new Option($discord);
-        $reasonOption
-            ->setName('raison')
-            ->setDescription('Raison du bannissement')
-            ->setType(3)
-            ->setRequired(false);
-
-        return $command->addOption($userOption)->addOption($reasonOption);
+            ->setDescription('Bannir un utilisateur même s’il n’est pas dans le serveur')
+            ->addOption(
+                (new Option($discord))
+                    ->setName('user_id')
+                    ->setDescription('ID de l’utilisateur à bannir')
+                    ->setType(3)
+                    ->setRequired(true)
+            )
+            ->addOption(
+                (new Option($discord))
+                    ->setName('raison')
+                    ->setDescription('Raison du bannissement')
+                    ->setType(3)
+                    ->setRequired(false)
+            );
     }
 
     public static function handle(Interaction $interaction, Discord $discord): void
@@ -50,9 +50,9 @@ class BanCommand
 
         if (!$userId) {
             $embed = new Embed($discord);
-            $embed->setTitle("Erreur ❌");
-            $embed->setDescription("ID utilisateur non fourni.");
-            $embed->setColor(0xFF0000);
+            $embed->setTitle("Erreur ❌")
+                ->setDescription("ID utilisateur non fourni.")
+                ->setColor(0xFF0000);
             $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
@@ -60,48 +60,53 @@ class BanCommand
         $member = $interaction->member;
         if (!$member->getPermissions()->ban_members) {
             $embed = new Embed($discord);
-            $embed->setTitle("Accès refusé 🔒");
-            $embed->setDescription("Tu n’as pas la permission de bannir des membres.");
-            $embed->setColor(0xFF8800);
+            $embed->setTitle("Accès refusé 🔒")
+                ->setDescription("Tu n’as pas la permission de bannir des membres.")
+                ->setColor(0xFF8800);
             $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             return;
         }
 
         $guild = $interaction->guild;
+        $staffUser = $interaction->member?->user;
+        $staffTag = $staffUser?->username ?? 'Inconnu';
+        $staffId = $staffUser?->id ?? '0';
 
         $discord->getHttpClient()->put("guilds/{$guild->id}/bans/{$userId}", [
             'delete_message_days' => 0,
             'reason' => $reason,
         ])->then(
-            function () use ($interaction, $discord, $userId, $reason, $guild) {
-                // ➕ Enregistrement dans la base de données
+            function () use ($interaction, $discord, $userId, $reason, $guild, $staffId, $staffTag) {
                 try {
                     $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
                     $stmt = $pdo->prepare("INSERT INTO sanctions (user_id, type, reason, date, moderator_id, server_id) VALUES (?, 'ban', ?, NOW(), ?, ?)");
-                    $stmt->execute([
-                        $userId,
-                        $reason,
-                        $interaction->user->id,
-                        $guild->id
-                    ]);
+                    $stmt->execute([$userId, $reason, $staffId, $guild->id]);
                 } catch (\PDOException $e) {
                     echo "Erreur BDD : " . $e->getMessage() . "\n";
                 }
 
-                // ✅ Réponse utilisateur
                 $embed = new Embed($discord);
-                $embed->setTitle("✅ Utilisateur banni");
-                $embed->setDescription("L'utilisateur avec l'ID `<@$userId>` a été banni.\n✏️ Raison : `$reason`");
-                $embed->setColor(0x00AAFF);
+                $embed->setTitle("✅ Utilisateur banni")
+                    ->setDescription("L'utilisateur <@$userId> a été banni.\n✏️ Raison : `$reason`")
+                    ->setColor(0xFF0000);
 
                 $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed));
+
+                ModLogger::logAction(
+                    $discord,
+                    $guild->id,
+                    'Ban',
+                    $userId,
+                    $staffId,
+                    "Bannissement de <@$userId>\n✏️ `$reason`",
+                    LogColors::get('Ban')
+                );
             },
             function ($e) use ($interaction, $discord, $userId) {
                 $embed = new Embed($discord);
-                $embed->setTitle("Erreur ❌");
-                $embed->setDescription("Impossible de bannir `$userId`. Raison : " . $e->getMessage());
-                $embed->setColor(0xFF0000);
-
+                $embed->setTitle("Erreur ❌")
+                    ->setDescription("Impossible de bannir `<@$userId>`.\nRaison : " . $e->getMessage())
+                    ->setColor(0xFF0000);
                 $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
             }
         );

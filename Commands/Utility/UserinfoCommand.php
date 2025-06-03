@@ -1,30 +1,30 @@
 <?php
 
-namespace Commands\Moderation;
+namespace Commands\Utility;
 
-use Discord\Discord;
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
+use Discord\Discord;
 use Discord\Parts\Embed\Embed;
-use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
+use Discord\Parts\Interactions\Interaction;
+use Events\LogColors;
+use Events\ModLogger;
 
 class UserinfoCommand
 {
     public static function register(Discord $discord): CommandBuilder
     {
-        $command = CommandBuilder::new()
+        return CommandBuilder::new()
             ->setName('userinfo')
-            ->setDescription("Affiche les infos d'un utilisateur");
-
-        $userIdOption = new Option($discord);
-        $userIdOption
-            ->setName('userid')
-            ->setDescription("ID de l'utilisateur à inspecter (facultatif)")
-            ->setType(3) // STRING
-            ->setRequired(false);
-
-        return $command->addOption($userIdOption);
+            ->setDescription("Affiche les infos d'un utilisateur")
+            ->addOption(
+                (new Option($discord))
+                    ->setName('userid')
+                    ->setDescription("ID de l'utilisateur à inspecter (facultatif)")
+                    ->setType(3) // STRING
+                    ->setRequired(false)
+            );
     }
 
     public static function handle(Interaction $interaction, Discord $discord): void
@@ -38,24 +38,45 @@ class UserinfoCommand
         }
 
         $guild = $interaction->guild;
-        $target = $interaction->member;
-        $user = $target->user;
+        $staffUser = $interaction->member?->user;
+        $staffTag = $staffUser?->username ?? 'Inconnu';
+        $staffId = $staffUser?->id ?? '0';
 
         if ($userId) {
             $guild->members->fetch($userId)->then(
-                function ($fetchedMember) use ($interaction, $discord) {
+                function ($fetchedMember) use ($interaction, $discord, $userId, $staffTag, $staffId) {
                     self::sendUserInfo($interaction, $discord, $fetchedMember);
+
+                    ModLogger::logAction(
+                        $discord,
+                        $interaction->guild_id,
+                        'Consultation utilisateur',
+                        $fetchedMember->user->id,
+                        $staffId,
+                        "Consultation de <@{$fetchedMember->user->id}> via /userinfo",
+                        LogColors::get('Userinfo')
+                    );
                 },
                 function () use ($interaction, $discord, $userId) {
                     $embed = new Embed($discord);
-                    $embed->setTitle("Erreur ❌");
-                    $embed->setDescription("Impossible de trouver l'utilisateur avec l'ID `$userId`.");
-                    $embed->setColor(0xFF0000);
+                    $embed->setTitle("Erreur ❌")
+                        ->setDescription("Impossible de trouver l'utilisateur avec l'ID `$userId`.")
+                        ->setColor(0xFF0000);
                     $interaction->respondWithMessage(MessageBuilder::new()->addEmbed($embed)->setFlags(64));
                 }
             );
         } else {
-            self::sendUserInfo($interaction, $discord, $target);
+            self::sendUserInfo($interaction, $discord, $interaction->member);
+
+            ModLogger::logAction(
+                $discord,
+                $interaction->guild_id,
+                'Consultation utilisateur',
+                $interaction->member->user->id,
+                $staffId,
+                "Consultation de soi-même via /userinfo",
+                LogColors::get('Consultation utilisateur')
+            );
         }
     }
 
@@ -69,6 +90,7 @@ class UserinfoCommand
         $createdAt = (int)(($createdAtMs + $discordEpoch) / 1000);
 
         $embed = new Embed($discord);
+        $embed->setTitle("🔎 Informations de l'utilisateur");
         $embed->addFieldValues("👥 Utilisateur", "<@{$user->id}>", true);
         $embed->setThumbnail($user->avatar);
         $embed->setColor(0x5865F2);
