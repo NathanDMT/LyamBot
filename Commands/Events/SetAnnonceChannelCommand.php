@@ -1,5 +1,6 @@
 <?php
 
+
 namespace Commands\Events;
 
 use Discord\Builders\CommandBuilder;
@@ -10,6 +11,9 @@ use Discord\Parts\Interactions\Command\Choice;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class SetAnnonceChannelCommand
 {
@@ -52,6 +56,7 @@ class SetAnnonceChannelCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
+        $pdo = getPDO();
         $eventType = null;
         $channelId = null;
         $enabled = '1';
@@ -77,8 +82,6 @@ class SetAnnonceChannelCommand
         }
 
         try {
-            $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
-
             $eventTypes = $eventType === 'all'
                 ? ['join', 'leave', 'boost']
                 : [$eventType];

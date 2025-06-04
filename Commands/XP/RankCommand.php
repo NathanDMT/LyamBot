@@ -8,6 +8,9 @@ use Discord\Discord;
 use Discord\Parts\Interactions\Interaction;
 use PDO;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class RankCommand
 {
     public static function register(Discord $discord): CommandBuilder
@@ -19,9 +22,7 @@ class RankCommand
 
     public static function handle(Interaction $interaction)
     {
-        // Connexion à ta base de données
-        $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
-
+        $pdo = getPDO();
         $userId = $interaction->user->id;
         $username = $interaction->user->username;
 

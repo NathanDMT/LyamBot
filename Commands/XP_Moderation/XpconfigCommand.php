@@ -6,7 +6,9 @@ use Discord\Builders\CommandBuilder;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Builders\MessageBuilder;
-use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class XpconfigCommand
 {
@@ -47,11 +49,10 @@ class XpconfigCommand
 
     public static function handle(Interaction $interaction)
     {
+        $pdo = getPDO();
         $action = $interaction->data->options['action']->value;
         $key = $interaction->data->options['key']->value ?? null;
         $value = $interaction->data->options['value']->value ?? null;
-
-        $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
 
         if ($action === 'view') {
             $stmt = $pdo->query("SELECT `key`, `value` FROM xp_settings");

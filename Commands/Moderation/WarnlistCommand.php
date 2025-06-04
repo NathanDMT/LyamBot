@@ -11,9 +11,10 @@ use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 use Events\LogColors;
-use PDO;
 use Events\ModLogger;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class WarnlistCommand
 {
@@ -35,6 +36,7 @@ class WarnlistCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
+        $pdo = getPDO();
         if (!$interaction->member->getPermissions()->kick_members) {
             $interaction->respondWithMessage(
                 MessageBuilder::new()->setContent("❌ Tu n’as pas la permission d’utiliser cette commande.")->setFlags(64)
@@ -50,7 +52,6 @@ class WarnlistCommand
         }
         $guildId = $interaction->guild_id;
 
-        $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
         $stmt = $pdo->prepare("SELECT reason, warned_by, created_at FROM warnings WHERE user_id = ? AND server_id = ? ORDER BY created_at DESC");
         $stmt->execute([$userId, $guildId]);
         $warns = $stmt->fetchAll(PDO::FETCH_ASSOC);

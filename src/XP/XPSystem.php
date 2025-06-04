@@ -8,13 +8,16 @@ use Discord\Discord;
 use Discord\Parts\Embed\Embed;
 use Discord\Builders\MessageBuilder;
 
+// Charger la fonction getPDO
+require_once __DIR__ . '/../utils/database.php';
+
 class XPSystem
 {
     private PDO $pdo;
 
     public function __construct()
     {
-        $this->pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
+        $this->pdo = getPDO(); // Réutilisation
     }
 
     public function handleMessage(Message $message, Discord $discord)
@@ -33,7 +36,7 @@ class XPSystem
         $gainXP = rand(5, 15);
 
         if ($user) {
-            $lastMessage = new \DateTime($user['last_message_at']);
+            $lastMessage = $user['last_message_at'] ? new \DateTime($user['last_message_at']) : (clone $now)->modify('-10 minutes');
             $diff = $now->getTimestamp() - $lastMessage->getTimestamp();
 
             if ($diff < 60) return; // cooldown 60s

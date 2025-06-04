@@ -10,7 +10,9 @@ use Discord\Builders\Components\Button;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
-use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class HistoryCommand
 {
@@ -32,6 +34,7 @@ class HistoryCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
+        $pdo = getPDO();
         $userId = null;
         foreach ($interaction->data->options as $option) {
             if ($option->name === 'user') {
@@ -47,7 +50,6 @@ class HistoryCommand
         }
 
         try {
-            $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
             $stmt = $pdo->prepare("SELECT * FROM sanctions WHERE user_id = ? ORDER BY date DESC");
             $stmt->execute([$userId]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);

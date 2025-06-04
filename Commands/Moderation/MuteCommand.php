@@ -11,6 +11,9 @@ use Discord\Parts\Interactions\Command\Option;
 use Events\LogColors;
 use Events\ModLogger;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class MuteCommand
 {
     public static function register(Discord $discord): CommandBuilder
@@ -90,8 +93,8 @@ class MuteCommand
                 'X-Audit-Log-Reason' => $reason
             ])->then(function () use ($interaction, $discord, $target, $reason, $userId, $durationMinutes, $guild) {
                 // ➕ Enregistrement en BDD
+                $pdo = getPDO();
                 try {
-                    $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
                     $stmt = $pdo->prepare("INSERT INTO sanctions (user_id, type, reason, date, moderator_id, server_id) VALUES (?, 'mute', ?, NOW(), ?, ?)");
                     $stmt->execute([
                         $userId,

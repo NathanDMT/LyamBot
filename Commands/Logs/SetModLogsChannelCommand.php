@@ -8,7 +8,9 @@ use Discord\Discord;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
-use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class SetModLogsChannelCommand
 {
@@ -35,6 +37,7 @@ class SetModLogsChannelCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
+        $pdo = getPDO();
         $channelId = null;
         $eventsRaw = '';
 
@@ -80,7 +83,6 @@ class SetModLogsChannelCommand
         $serverId = $interaction->guild_id;
 
         try {
-            $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
             $stmt = $pdo->prepare("REPLACE INTO modlog_config (server_id, event_type, channel_id) VALUES (?, ?, ?)");
             foreach ($events as $eventType) {
                 $stmt->execute([$serverId, $eventType, $channelId]);

@@ -7,11 +7,16 @@ use Discord\Discord;
 use Discord\Parts\User\Member;
 use Discord\WebSockets\Event;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class AnnonceGuildBoost
 {
     public static function register(Discord $discord): void
     {
-        $discord->on(Event::GUILD_MEMBER_UPDATE, function (Member $newMember, Discord $discord, Member $oldMember) {
+        $pdo = getPDO();
+
+        $discord->on(Event::GUILD_MEMBER_UPDATE, function (Member $oldMember, Member $newMember, Discord $discord) use ($pdo) {
             // Vérifie si l'utilisateur vient de booster le serveur
             $wasBoosting = $oldMember->premium_since !== null;
             $isBoosting = $newMember->premium_since !== null;
@@ -19,10 +24,8 @@ class AnnonceGuildBoost
             if (!$wasBoosting && $isBoosting) {
                 $guildId = $newMember->guild_id;
 
-                // 🔌 Connexion à la BDD pour récupérer le salon d'event
                 try {
-                    $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
-                    $stmt = $pdo->prepare("SELECT channel_id FROM event_config WHERE server_id = ? AND event_type = 'boost'");
+                    $stmt = $pdo->prepare("SELECT channel_id FROM event_config WHERE server_id = ? AND event_type = 'boost' AND enabled = 1");
                     $stmt->execute([$guildId]);
                     $row = $stmt->fetch(\PDO::FETCH_ASSOC);
                     $channelId = $row['channel_id'] ?? null;
@@ -34,7 +37,7 @@ class AnnonceGuildBoost
                 if (!$channelId) return;
 
                 $guild = $discord->guilds->get('id', $guildId);
-                $channel = $guild->channels->get('id', $channelId);
+                $channel = $guild?->channels->get('id', $channelId);
                 if (!$channel) return;
 
                 $message = MessageBuilder::new()
