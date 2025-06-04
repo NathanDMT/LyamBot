@@ -7,6 +7,9 @@ use Discord\Parts\Embed\Embed;
 use Discord\Builders\MessageBuilder;
 use PDO;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class ModLogger
 {
     public static function logAction(
@@ -20,7 +23,7 @@ class ModLogger
     ): void {
         // 🔌 Connexion à la BDD pour récupérer le salon configuré
         try {
-            $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
+            $pdo = getPDO();
             $stmt = $pdo->prepare("SELECT channel_id FROM modlog_config WHERE server_id = ?");
             $stmt->execute([$guildId]);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);

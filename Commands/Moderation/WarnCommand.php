@@ -8,7 +8,6 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
-use PDO;
 use Events\ModLogger;
 use Events\LogColors;
 
@@ -37,6 +36,7 @@ class WarnCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
+        $pdo = getPDO();
         $userId = null;
         $reason = null;
 
@@ -71,7 +71,6 @@ class WarnCommand
         }
 
         // Enregistrement en BDD
-        $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
         $stmt = $pdo->prepare("INSERT INTO warnings (user_id, warned_by, reason, server_id) VALUES (?, ?, ?, ?)");
         $stmt->execute([$userId, $member->user->id, $reason, $guild->id]);
 

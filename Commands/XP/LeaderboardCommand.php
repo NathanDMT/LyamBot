@@ -7,7 +7,9 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Embed\Embed;
 use Discord\Discord;
 use Discord\Parts\Interactions\Interaction;
-use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class LeaderboardCommand
 {
@@ -20,8 +22,7 @@ class LeaderboardCommand
 
     public static function handle(Interaction $interaction, Discord $discord)
     {
-        $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
-
+        $pdo = getPDO();
         $stmt = $pdo->query("SELECT username, level, xp FROM users_activity ORDER BY level DESC, xp DESC LIMIT 10");
         $top = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

@@ -9,7 +9,7 @@
         "psr-4": {
             "Commands\\": "Commands/",
             "XP\\": "src/XP/",
-            "Poll\\": "src/Poll/",
+            "Poll\\": "src/poll/",
             "Helpers\\": "src/Helpers/",
             "Owner\\": "src/Owner/",
             "Util\\": "src/Util/",

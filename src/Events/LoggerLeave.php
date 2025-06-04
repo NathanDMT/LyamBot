@@ -10,13 +10,17 @@ use Discord\Parts\User\Member;
 use Discord\WebSockets\Event;
 use PDO;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class LoggerLeave
 {
     public static function register(Discord $discord): void
     {
-        $discord->on(Event::GUILD_MEMBER_REMOVE, function (Member $member) use ($discord) {
+        $pdo = getPDO();
+
+        $discord->on(Event::GUILD_MEMBER_REMOVE, function (Member $member) use ($discord, $pdo) {
             try {
-                $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
                 $stmt = $pdo->prepare("SELECT channel_id FROM modlog_config WHERE server_id = ? AND event_type = 'leave'");
                 $stmt->execute([$member->guild_id]);
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);

@@ -7,6 +7,9 @@ use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Builders\MessageBuilder;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class SetxpCommand
 {
     public static function register(Discord $discord): CommandBuilder
@@ -35,11 +38,10 @@ class SetxpCommand
 
     public static function handle(Interaction $interaction)
     {
+        $pdo = getPDO();
         $target = $interaction->data->options['utilisateur']->value;
         $xp = $interaction->data->options['valeur']->value;
         $level = floor(sqrt($xp / 100));
-
-        $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
 
         $pdo->prepare("UPDATE users_activity SET xp = ?, level = ? WHERE user_id = ?")
             ->execute([$xp, $level, $target]);

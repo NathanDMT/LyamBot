@@ -8,6 +8,9 @@ use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Builders\MessageBuilder;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class ResetxpCommand
 {
     public static function register(Discord $discord): CommandBuilder
@@ -27,6 +30,7 @@ class ResetxpCommand
 
     public static function handle(Interaction $interaction)
     {
+        $pdo = getPDO();
         $options = $interaction->data->options;
         $userId = null;
 
@@ -42,8 +46,6 @@ class ResetxpCommand
                 ->setContent("❌ Utilisateur non spécifié."), true);
             return;
         }
-
-        $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
 
         $pdo->prepare("UPDATE users_activity SET xp = 0, level = 1 WHERE user_id = ?")
             ->execute([$userId]);

@@ -8,7 +8,9 @@ use Discord\Discord;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
-use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class PollCommand
 {
@@ -67,10 +69,10 @@ class PollCommand
 
         $interaction->sendFollowUpMessage(MessageBuilder::new()->addEmbed($embed))->then(function ($message) use ($question, $duration) {
                 // Ajoute les réactions
-                $message->react('✅');
+            $pdo = getPDO();
+            $message->react('✅');
                 $message->react('❌');
 
-            $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
             $stmt = $pdo->prepare("INSERT INTO polls (message_id, channel_id, question, fin_at) VALUES (?, ?, ?, ?)");
 
             $messageId = $message->id;

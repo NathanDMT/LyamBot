@@ -7,6 +7,9 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class LevelupCommand
 {
     public static function register(\Discord\Discord $discord): CommandBuilder
@@ -30,11 +33,11 @@ class LevelupCommand
 
     public static function handle(Interaction $interaction)
     {
+        $pdo = getPDO();
         $options = $interaction->data->options;
         $etat = $options['etat']->value ?? 'off';
         $userId = $interaction->user->id;
 
-        $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
         $pdo->prepare("UPDATE users_activity SET levelup_notify = ? WHERE user_id = ?")
             ->execute([$etat === 'on' ? 1 : 0, $userId]);
 

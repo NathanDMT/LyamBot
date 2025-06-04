@@ -9,7 +9,9 @@ use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
 use Events\ModLogger;
 use Events\LogColors;
-use PDO;
+
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
 
 class TestConfigChannelCommand
 {
@@ -22,6 +24,7 @@ class TestConfigChannelCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
+        $pdo = getPDO();
         $user = $interaction->member?->user;
         $staffId = $user?->id ?? '0';
         $guildId = $interaction->guild_id;
@@ -41,8 +44,6 @@ class TestConfigChannelCommand
         $modlogList = '';
 
         try {
-            $pdo = new PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
-
             // Salons d'annonce actifs
             $stmt = $pdo->prepare("SELECT event_type, channel_id FROM event_config WHERE server_id = ? AND enabled = 1");
             $stmt->execute([$guildId]);

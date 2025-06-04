@@ -10,6 +10,9 @@ use Discord\Builders\MessageBuilder;
 use Discord\Parts\Interactions\Command\Option;
 use PDO;
 
+// Charger la connexion PDO
+require_once __DIR__ . '/../../src/utils/database.php';
+
 class ProfileCommand
 {
     public static function register(Discord $discord): CommandBuilder
@@ -29,6 +32,7 @@ class ProfileCommand
 
     public static function handle(Interaction $interaction, Discord $discord)
     {
+        $pdo = getPDO();
         $options = $interaction->data->options;
         $targetUser = null;
 
@@ -38,8 +42,6 @@ class ProfileCommand
                 break;
             }
         }
-
-        $pdo = new \PDO('mysql:host=localhost;dbname=lyam;charset=utf8mb4', 'root', 'root');
 
         $stmt = $pdo->prepare("SELECT xp, level FROM users_activity WHERE user_id = ?");
         $stmt->execute([$targetUser]);

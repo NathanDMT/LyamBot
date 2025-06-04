@@ -30,9 +30,10 @@ $logger->pushHandler(new StreamHandler('php://stdout', Logger::WARNING));
 // MODIFIE LA LANGUE DES INFOS D'EMBEDS DE JOIN/LEAVES...
 \Carbon\Carbon::setLocale('fr');
 
-// LOAD LE .ENV POUR LA CONNEXION A LA BDD
+// LOAD LE .ENV POUR LA CONNEXION AU BOT ET A LA BDD
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
 $dotenv->load();
+require_once __DIR__ . '/src/utils/database.php';
 $token = $_ENV['DISCORD_TOKEN'];
 
 $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -79,26 +80,9 @@ $commandClasses = getCommandClasses();
 $xpSystem = new XPSystem();
 
 $discord->on('ready', function (Discord $discord) use ($commandClasses, $xpSystem, $startTime, $RELOAD_COMMANDS) {
+    global $pdo;
     echo "✅ Connecté en tant que {$discord->user->username}\n";
     printf("🚀 Démarrage en %.2f sec\n", microtime(true) - $startTime);
-
-    $host = $_ENV['DB_HOST'] ?? 'localhost';
-    $db   = $_ENV['DB_NAME'] ?? 'lyam';
-    $user = $_ENV['DB_USER'] ?? 'root';
-    $pass = $_ENV['DB_PASS'] ?? 'root';
-    $charset = $_ENV['DB_CHARSET'] ?? 'utf8mb4';
-
-    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-
-    try {
-        $pdo = new PDO($dsn, $user, $pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-    } catch (PDOException $e) {
-        echo "❌ Erreur de connexion PDO : " . $e->getMessage() . "\n";
-        exit(1);
-    }
 
     // Enregistrement des events UNE FOIS au démarrage :
     LoggerJoin::register($discord);
@@ -109,7 +93,7 @@ $discord->on('ready', function (Discord $discord) use ($commandClasses, $xpSyste
     AnnonceGuildMemberAdd::register($discord);
     AnnonceGuildMemberRemove::register($discord);
 
-    $pollChecker = new PollChecker($pdo, $discord);
+    $pollChecker = new PollChecker($discord);
     $pollChecker->start();
 
     $commands = [];
