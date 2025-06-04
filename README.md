@@ -39,8 +39,7 @@ LyamBot/
 │   ├── XP/                # Système d'expérience (XP)
 │   ├── Poll/              # Gestion des sondages
 │   ├── Logs/              # Logs serveur
-│   └── utils/             # Fonctions utilitaires (connexion PDO, etc.)
-├── lyam.sql               # Dump de la base de données
+│   └── Utils/             # Fonctions utilitaires (connexion PDO, etc.)
 ├── index.php              # Point d’entrée du bot
 ├── composer.json          # Dépendances PHP
 ├── .env                   # Configuration (non versionnée)
