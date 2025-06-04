@@ -2,11 +2,11 @@
 
 namespace Commands\Owner;
 
-use Discord\Discord;
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
-use Discord\Parts\Interactions\Interaction;
+use Discord\Discord;
 use Discord\Parts\Interactions\Command\Option;
+use Discord\Parts\Interactions\Interaction;
 
 class ReloadCommand
 {

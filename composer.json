@@ -3,19 +3,25 @@
         "team-reflex/discord-php": "^10.7",
         "vlucas/phpdotenv": "^5.6",
       "ext-pdo": "*",
-        "nesbot/carbon": "^3.9"
+        "nesbot/carbon": "^3.9",
+        "guzzlehttp/guzzle": "^7.9",
+        "symfony/dom-crawler": "^7.3",
+        "symfony/css-selector": "^7.3"
     },
     "autoload": {
         "psr-4": {
-            "Commands\\": "Commands/",
-            "XP\\": "src/XP/",
-            "Poll\\": "src/poll/",
-            "Helpers\\": "src/Helpers/",
-            "Owner\\": "src/Owner/",
-            "Util\\": "src/Util/",
-            "Game\\": "src/Game/",
-            "Logs\\": "src/Logs/",
-            "Events\\": "src/Events"
+          "Commands\\": "Commands/",
+          "Astronomy\\": "src/Astronomy",
+          "Poll\\": "src/poll/",
+          "XP\\": "src/XP/",
+          "Helpers\\": "src/Helpers/",
+          "Owner\\": "src/Owner/",
+          "Util\\": "src/Util/",
+          "Game\\": "src/Game/",
+          "Logs\\": "src/Logs/",
+          "Events\\": "src/Events",
+
+          "Utils\\": "src/Utils/"
         }
     }
 }

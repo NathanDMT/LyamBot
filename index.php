@@ -2,6 +2,8 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+use Commands\Astronomy\ApodCommand;
+use Commands\Astronomy\MeteorShowersCommand;
 use Commands\Moderation\HistoryCommand;
 use Commands\Moderation\WarnlistCommand;
 use Discord\Discord;
@@ -152,6 +154,13 @@ $discord->on('ready', function (Discord $discord) use ($commandClasses, $xpSyste
                 WarnlistCommand::handleButton($interaction, $discord);
             } elseif (str_starts_with($customId, 'history_')) {
                 HistoryCommand::handleButton($interaction, $discord);
+            } elseif (str_starts_with($customId, 'apod_show_image_')) {
+                ApodCommand::handleButton($interaction, $discord);
+            } elseif (str_starts_with($interaction->data->custom_id, 'prev:') || str_starts_with($interaction->data->custom_id, 'next:')) {
+                MeteorShowersCommand::handleButton($interaction, $discord);
+            }
+            if ($interaction->type === \Discord\InteractionType::MESSAGE_COMPONENT && $interaction->data->custom_id === 'refresh_iss') {
+                \Commands\Astronomy\IssLocationCommand::editWithNewData($interaction, $discord);
             }
         }
     });

@@ -4,8 +4,8 @@ namespace Commands\Game;
 
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
-use Discord\Parts\Interactions\Interaction;
 use Discord\Discord;
+use Discord\Parts\Interactions\Interaction;
 
 class DiceCommand
 {

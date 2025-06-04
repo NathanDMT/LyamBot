@@ -4,9 +4,10 @@ namespace Commands\XP;
 
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
-use Discord\Parts\Embed\Embed;
 use Discord\Discord;
+use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Interaction;
+use PDO;
 
 // Charger la connexion PDO
 require_once __DIR__ . '/../../src/utils/database.php';
