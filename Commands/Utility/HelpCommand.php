@@ -4,11 +4,11 @@ namespace Commands\Utility;
 
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
-use Discord\Parts\Embed\Embed;
-use Discord\Parts\Interactions\Interaction;
-use Discord\Parts\Interactions\Command\Option;
-use Discord\Parts\Interactions\Command\Choice;
 use Discord\Discord;
+use Discord\Parts\Embed\Embed;
+use Discord\Parts\Interactions\Command\Choice;
+use Discord\Parts\Interactions\Command\Option;
+use Discord\Parts\Interactions\Interaction;
 
 class HelpCommand
 {
@@ -23,6 +23,7 @@ class HelpCommand
         'Logs'            => ['📝 Logs & Historique', 0xAAAAAA],
         'Utility'         => ['🧰 Utilitaires', 0x55AAFF],
         'Owner'           => ['👑 Commandes Admin', 0xFFD700],
+        'Astronomy'         => ['🌠 Astronomie', 0x005288],
         'Default'         => ['📂 Autres', 0xCCCCCC],
     ];
 

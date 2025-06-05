@@ -10,7 +10,6 @@ use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Choice;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
-use PDO;
 
 // Charger la connexion PDO
 require_once __DIR__ . '/../../src/utils/database.php';

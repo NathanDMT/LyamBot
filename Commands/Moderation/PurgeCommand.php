@@ -2,13 +2,13 @@
 
 namespace Commands\Moderation;
 
-use Discord\Discord;
-use function React\Promise\all;
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
+use Discord\Discord;
 use Discord\Parts\Embed\Embed;
-use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Interactions\Command\Option;
+use Discord\Parts\Interactions\Interaction;
+use function React\Promise\all;
 
 class PurgeCommand
 {

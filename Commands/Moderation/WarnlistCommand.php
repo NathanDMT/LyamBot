@@ -2,16 +2,17 @@
 
 namespace Commands\Moderation;
 
-use Discord\Discord;
 use Discord\Builders\CommandBuilder;
-use Discord\Builders\MessageBuilder;
 use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\Button;
+use Discord\Builders\MessageBuilder;
+use Discord\Discord;
 use Discord\Parts\Embed\Embed;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 use Events\LogColors;
 use Events\ModLogger;
+use PDO;
 
 // Charger la connexion PDO
 require_once __DIR__ . '/../../src/utils/database.php';
