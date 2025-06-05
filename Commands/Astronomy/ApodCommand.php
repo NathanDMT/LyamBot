@@ -8,6 +8,7 @@ use Discord\Builders\MessageBuilder;
 use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\Button;
 use Discord\Parts\Embed\Embed;
+use Discord\Parts\Channel\File;
 use Discord\Parts\Interactions\Command\Option;
 use Discord\Parts\Interactions\Interaction;
 use GuzzleHttp\Client;
@@ -32,79 +33,86 @@ class ApodCommand
 
     public static function handle(Interaction $interaction, Discord $discord): void
     {
-        $client = new Client();
-        $apiKey = $_ENV['NASA_API_KEY'] ?? 'DEMO_KEY';
+        $interaction->acknowledge()->then(function () use ($interaction, $discord) {
+            $apiKey = $_ENV['NASA_API_KEY'] ?? 'DEMO_KEY';
 
-        $date = date('Y-m-d');
-        if (isset($interaction->data->options['date'])) {
-            $inputDate = $interaction->data->options['date']->value;
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
-                $date = $inputDate;
-            }
-        }
-
-        try {
-            $client = new Client([
-                'verify' => __DIR__ . '/../../src/certs/cacert.pem',
-            ]);
-
-            $response = $client->get("https://api.nasa.gov/planetary/apod", [
-                'query' => [
-                    'api_key' => $apiKey,
-                    'date' => $date
-                ]
-            ]);
-
-            $data = json_decode($response->getBody(), true);
-
-            $embed = new Embed($discord);
-            $embed->setTitle("📷 {$data['title']}")
-                ->setDescription($data['explanation'])
-                ->setUrl($data['url'])
-                ->setColor(0x005288)
-                ->setTimestamp()
-                ->setFooter("Astronomy Picture of the Day • {$data['date']}");
-
-            $imageUrl = $data['hdurl'] ?? $data['url'] ?? null;
-
-            if ($data['media_type'] === 'image') {
-                if ($imageUrl && preg_match('/\.(jpg|jpeg|png|gif)$/i', $imageUrl)) {
-                    $embed->setImage($imageUrl);
+            $date = date('Y-m-d');
+            if (isset($interaction->data->options['date'])) {
+                $inputDate = $interaction->data->options['date']->value;
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $inputDate)) {
+                    $date = $inputDate;
                 }
             }
 
-            if ($data['media_type'] === 'video') {
-                $embed->addFieldValues("🎬 Vidéo", $data['url']);
+            try {
+                $client = new Client([
+                    'verify' => __DIR__ . '/../../src/certs/cacert.pem',
+                ]);
 
-                if (preg_match('/youtube\.com.*?[?&]v=([^&]+)/', $data['url'], $match)
-                    || preg_match('/youtu\.be\/([^?]+)/', $data['url'], $match)) {
-                    $videoId = $match[1];
-                    $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
-                    $embed->setImage($thumbnail);
+                $response = $client->get("https://api.nasa.gov/planetary/apod", [
+                    'query' => [
+                        'api_key' => $apiKey,
+                        'date' => $date
+                    ]
+                ]);
+
+                $data = json_decode($response->getBody(), true);
+                $imageUrl = $data['url'] ?? $data['hdurl'] ?? null;
+
+                $embed = new Embed($discord);
+                $embed->setTitle("{$data['title']}")
+                    ->setURL($data['url'])
+                    ->setDescription(substr($data['explanation'], 0, 4000)) // Discord limit
+                    ->setColor(0x005288)
+                    ->setFooter("Astronomy Picture of the Day • {$data['date']}");
+
+                if ($data['media_type'] === 'image' && $imageUrl && preg_match('/\.(jpg|jpeg|png|gif)$/i', $imageUrl)) {
+                    $tempPath = sys_get_temp_dir() . '/apod_' . uniqid() . '.jpg';
+                    file_put_contents($tempPath, file_get_contents($imageUrl));
+
+                    $embed->setImage("attachment://" . basename($tempPath));
+
+                    $interaction->sendFollowUpMessage(
+                        MessageBuilder::new()
+                            ->addEmbed($embed)
+                            ->addFile($tempPath)
+                    );
+
+                    // Nettoyage du fichier après un court délai
+                    \React\EventLoop\Loop::addTimer(5, function () use ($tempPath) {
+                        if (file_exists($tempPath)) {
+                            unlink($tempPath);
+                        }
+                    });
+                } elseif ($data['media_type'] === 'video') {
+                    $embed->addFieldValues("🎬 Vidéo", $data['url']);
+
+                    if (preg_match('/youtube\.com.*?[?&]v=([^&]+)/', $data['url'], $match)
+                        || preg_match('/youtu\.be\/([^?]+)/', $data['url'], $match)) {
+                        $videoId = $match[1];
+                        $thumbnail = "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg";
+                        $embed->setImage($thumbnail);
+                    }
+
+                    $interaction->sendFollowUpMessage(
+                        MessageBuilder::new()
+                            ->addEmbed($embed)
+                    );
+                } else {
+                    $interaction->sendFollowUpMessage(
+                        MessageBuilder::new()
+                            ->setContent("❌ Média non supporté : {$data['media_type']}")
+                    );
                 }
+
+            } catch (\Throwable $e) {
+                $interaction->sendFollowUpMessage(
+                    MessageBuilder::new()
+                        ->setContent("❌ Erreur APOD : " . $e->getMessage())
+                        ->setFlags(64)
+                );
             }
-
-            $uniqueId = uniqid('apod_', true);
-            self::$imageCache[$uniqueId] = $imageUrl;
-
-            $buttonRow = ActionRow::new()->addComponent(
-                Button::new(Button::STYLE_PRIMARY)
-                    ->setLabel("📥 Afficher l’image")
-                    ->setCustomId("apod_show_image_$uniqueId")
-            );
-
-            $interaction->respondWithMessage(
-                MessageBuilder::new()
-                    ->addEmbed($embed)
-                    ->addComponent($buttonRow)
-            );
-        } catch (\Throwable $e) {
-            $interaction->respondWithMessage(
-                MessageBuilder::new()
-                    ->setContent("❌ Erreur APOD : " . $e->getMessage())
-                    ->setFlags(64)
-            );
-        }
+        });
     }
 
     public static function handleButton(Interaction $interaction, Discord $discord): void

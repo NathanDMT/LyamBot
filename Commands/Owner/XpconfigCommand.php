@@ -1,6 +1,6 @@
 <?php
 
-namespace Commands\XP_Moderation;
+namespace Commands\Owner;
 
 use Discord\Builders\CommandBuilder;
 use Discord\Builders\MessageBuilder;
