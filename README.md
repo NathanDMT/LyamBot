@@ -1,6 +1,7 @@
 # 🤖 LyamBot
 
-LyamBot est un bot Discord développé en **PHP** avec la bibliothèque [`discord-php`](https://github.com/teamreflex/DiscordPHP), utilisant **MySQL** pour stocker les données et **ReactPHP** pour la boucle d’événements. Il propose un système de modération, un système d’XP, des sondages, des mini-jeux, et bien plus.
+LyamBot est maintenant un bot Discord développé en **Node.js** avec la bibliothèque [`discord.js`](https://discord.js.org). Il utilise **SQLite** (ou **MySQL**) pour le stockage des données via les librairies `better-sqlite3` et `mysql2`. Le bot propose toujours un système de modération, d’XP, des sondages et d’autres fonctionnalités.
+Toutes les anciennes commandes PHP ont été réécrites en JavaScript dans le dossier `js/commands`.
 
 ## 📦 Fonctionnalités principales
 
@@ -20,14 +21,14 @@ git clone https://github.com/NathanDMT/LyamBot.git
 cd LyamBot
 ```
 
-### 2. Installer les dépendances PHP
+### 2. Installer les dépendances Node
 ```bash
-composer install
+npm install
 ```
 
 ### 3. Lancer le bot
 ```bash
-php index.php
+npm start
 ```
 
 ## 📁 Arborescence du projet
@@ -40,40 +41,54 @@ LyamBot/
 │   ├── Poll/              # Gestion des sondages
 │   ├── Logs/              # Logs serveur
 │   └── Utils/             # Fonctions utilitaires (connexion PDO, etc.)
-├── index.php              # Point d’entrée du bot
-├── composer.json          # Dépendances PHP
+├── index.js               # Point d’entrée du bot
+├── package.json           # Dépendances Node
 ├── .env                   # Configuration (non versionnée)
 └── README.md              # Ce fichier
 ```
 
 ## ✅ Exemples de commandes
 ```bash
-/warn user:@Nathan reason:"Spam"
+/ping
 
-/warnlist user:@Nathan
+/coinflip
 
-/mute user:@Troll duration:"30m"
+/dice
 
 /poll question:"Préférez-vous PHP ou JS ?" options:"PHP,JS" duration:"1h"
 
-/xpconfig action:view
+/serverinfo
 
-/setxp user:@Nathan value:4000
+/serverstats
 
-/note user:@Modérateur note:"À surveiller"
+/userinfo utilisateur:@Nathan
 
-/history user:@Nathan
+/help
+
+/invite
+
+/annonce message:"Ceci est une annonce"
+
+/kick utilisateur:@Membre raison:"trop bruyant"
+
+/ban utilisateur:@Membre raison:"trop bruyant"
+
+/purge nombre:10
+
+/rank
+
+/leaderboard
 ```
 
 ## 💡 Dépendances principales
 ```bash
-discord-php
+discord.js
 
-vlucas/phpdotenv
+dotenv
 
-react/event-loop
+better-sqlite3
 
-ext-pdo, ext-json, ext-curl, etc.
+mysql2
 ```
 
 ## 📄 Licence
